@@ -34,29 +34,42 @@ class _CartPageState extends State<CartPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PureBite - Cart'),
+        title: const Text('PureBite Cart'),
         backgroundColor: Colors.green,
       ),
       body: Column(
         children: [
           Expanded(
-            child: _ItemCard(
-              orderCount: orderCount,
-              onIncrement: orderInc,
-              onDecrement: orderDec,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+
+                  _ItemCard(
+                    orderCount: orderCount,
+                    onIncrement: orderInc,
+                    onDecrement: orderDec,
+                  ),
+                ],
+              ),
             ),
           ),
-          _OrderSummary(
-            subTotal: subTotal,
-            gstTotal: gstTotal,
-            total: total,
+          SizedBox(
+            width: double.infinity,
+            child: GestureDetector(
+              child: _PaymentCard(),
+              onTap: () {
+                Navigator.pushNamed(context, '/payment');
+              },
+            ),
           ),
+          _OrderSummary(subTotal: subTotal, gstTotal: gstTotal, total: total),
         ],
       ),
     );
   }
 }
-
 
 class _ItemCard extends StatelessWidget {
   final int orderCount;
@@ -98,12 +111,43 @@ class _ItemCard extends StatelessWidget {
                   onPressed: onDecrement,
                 ),
                 Text(orderCount.toString()),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: onIncrement,
-                ),
+                IconButton(icon: const Icon(Icons.add), onPressed: onIncrement),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Payment',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('**** **** **** 1234'),
+                const Spacer(),
+                const Text('07/28'),
+              ],
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -145,21 +189,24 @@ class _OrderSummary extends StatelessWidget {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/order_confirmation');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('Place Order', style: TextStyle(color: Colors.white),),
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/order_confirmation');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              child: const Text(
+                'Place Order',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
         ],
       ),
     );
