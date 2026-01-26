@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+import 'payment.dart';
 import 'order_confirmation.dart';
 import 'login.dart';
 import 'home.dart';
@@ -8,7 +12,12 @@ import 'order_status.dart';
 import 'signup.dart'; 
 import 'nutrient_tracking.dart'; 
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(PureBiteApp());
 }
 
@@ -31,6 +40,7 @@ class PureBiteApp extends StatelessWidget {
         '/home': (context) => HomePage(),
         '/menu': (context) => MenuPage(shopName: 'Healthy Bowls'), // Example with a shop name
         '/cart': (context) => CartPage(),
+        '/payment': (context) => PaymentPage(),
         '/order_status': (context) => OrderStatusPage(),
         '/order_confirmation': (context) => OrderConfirmationPage(),
         '/signup': (context) => SignUpPage(),
