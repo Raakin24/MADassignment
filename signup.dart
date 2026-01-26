@@ -1,45 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:mad_project/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'home.dart'; // Ensure you have a HomePage
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dataservice.dart';
+import 'home.dart';
 
 class SignUpPage extends StatelessWidget {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Future<void> signUp(BuildContext context) async {
-    String username = usernameController.text;
-    String email = emailController.text;
+    String username = usernameController.text.trim();
+    String email = emailController.text.trim();
     String password = passwordController.text;
     String confirmPassword = confirmPasswordController.text;
 
     if (password == confirmPassword) {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      // Save user credentials to SharedPreferences
-      await prefs.setString('username', username);
-      await prefs.setString('email', email);
-      await prefs.setString('password', password);
-
-      // Navigate to HomePage after successful sign-up
+      await Dataservice.addLogin(
+        username: username,
+        email: email,
+        password: password,
+      );
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => HomePage()),
+        MaterialPageRoute(builder: (context) => LoginPage()),
       );
     } else {
-      // Show error if the passwords don't match
       showDialog(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('Error'),
-            content: Text('Passwords do not match. Please try again.'),
+            title: const Text('Error'),
+            content: const Text('Passwords do not match. Please try again.'),
             actions: <Widget>[
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close the dialog
-                },
-                child: Text('OK'),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
               ),
             ],
           );
@@ -52,38 +51,40 @@ class SignUpPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('PureBite - Sign Up'),
+        title: const Text('PureBite - Sign Up'),
         backgroundColor: Colors.green,
       ),
       body: Padding(
-        padding: EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: usernameController,
-              decoration: InputDecoration(labelText: 'Username'),
+              decoration: const InputDecoration(labelText: 'Username'),
             ),
             TextField(
               controller: emailController,
-              decoration: InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Password'),
             ),
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
-              decoration: InputDecoration(labelText: 'Confirm Password'),
+              decoration: const InputDecoration(labelText: 'Confirm Password'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                signUp(context); // Call the sign-up function
-              },
-              child: Text('Register'),
+              onPressed: () => signUp(context),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text(
+                'Register',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
