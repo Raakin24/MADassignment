@@ -1,9 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'login.dart';
 
-class Dataservice {
-  List<Logins> z = [];
+class Logins {
+  String username = "", password = "";
 
+  Logins(this.username, this.password);
+}
+
+List<Logins> z = [];
+
+class DataService {
   static final CollectionReference loginData = FirebaseFirestore.instance
       .collection('logindata');
 
@@ -17,5 +22,19 @@ class Dataservice {
       'email': email,
       'password': password,
     });
+  }
+
+  static Future<void> getLoginDataByUsername(String enteredUsername) async {
+    z.clear();
+
+    QuerySnapshot qs = await loginData
+        .where("username", isEqualTo: enteredUsername)
+        .limit(1)
+        .get();
+
+    if (qs.docs.isNotEmpty) {
+      final data = qs.docs.first.data() as Map<String, dynamic>;
+      z.add(Logins(data['username'], data['password']));
+    }
   }
 }
