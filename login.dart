@@ -1,34 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'home.dart';  // Ensure you have a HomePage in your app
-import 'signup.dart'; // Navigate to SignUpPage
+import 'home.dart';
+import 'signup.dart';
+import 'dataservice.dart'; // ✅ add this import
 
 class LoginPage extends StatelessWidget {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   Future<void> login(BuildContext context) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? storedUsername = prefs.getString('username');
-    String? storedPassword = prefs.getString('password');
+    final enteredUsername = usernameController.text.trim();
+    final enteredPassword = passwordController.text.trim();
 
-    String enteredUsername = usernameController.text;
-    String enteredPassword = passwordController.text;
+    await DataService.getLoginDataByUsername(enteredUsername);
 
-    if (storedUsername == enteredUsername && storedPassword == enteredPassword) {
-      // Navigate to HomePage if login is successful
+    if (z.isNotEmpty && z[0].password == enteredPassword) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
       );
     } else {
-      // Show error message if login fails and navigate to SignUpPage
       showDialog(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('Login Failed'),
-            content: Text('Incorrect username or password. Please sign up.'),
+            title: const Text('Login Failed'),
+            content: const Text('Incorrect username or password. Please sign up.'),
             actions: <Widget>[
               TextButton(
                 onPressed: () {
@@ -37,13 +33,13 @@ class LoginPage extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => SignUpPage()),
                   );
                 },
-                child: Text('Sign Up'),
+                child: const Text('Sign Up'),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); // Close the dialog
+                  Navigator.pop(context);
                 },
-                child: Text('Try Again'),
+                child: const Text('Try Again'),
               ),
             ],
           );
@@ -56,40 +52,37 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('PureBite - Login'),
+        title: const Text('PureBite - Login'),
         backgroundColor: Colors.green,
       ),
       body: Padding(
-        padding: EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/logo.png', height: 100),
+            Image.asset('assets/img/logo.png', height: 100),
             TextField(
               controller: usernameController,
-              decoration: InputDecoration(labelText: 'Username'),
+              decoration: const InputDecoration(labelText: 'Username'),
             ),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Password'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                login(context); // Call the login function
-              },
-              child: Text('Login'),
+              onPressed: () => login(context),
+              child: const Text('Login'),
             ),
             TextButton(
               onPressed: () {
-                // Navigate to the SignUpPage
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => SignUpPage()),
                 );
               },
-              child: Text("Don't have an account? Sign up"),
+              child: const Text("Don't have an account? Sign up"),
             ),
           ],
         ),
