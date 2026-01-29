@@ -13,7 +13,7 @@ class LoginPage extends StatelessWidget {
 
     await DataService.getLoginDataByUsername(enteredUsername);
 
-    if (z.isNotEmpty && z[0].password == enteredPassword) {
+    if (localLoginData.isNotEmpty && localLoginData[0].password == enteredPassword) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
