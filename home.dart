@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dataservice.dart'; // Assuming you have a DataService to fetch data
+import 'menu.dart'; // To navigate to the menu page
 
 class HomePage extends StatefulWidget {
   @override
@@ -7,18 +9,37 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 1;
+  bool loading = true;
+  List<Shop> shopList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShops(); // Fetch the list of shops when the page is loaded
+  }
+
+  Future<void> _fetchShops() async {
+    try {
+      shopList = await DataService.getShops(); // Fetch shop data from DataService
+    } catch (e) {
+      debugPrint("Error loading shops: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false; // Stop loading when data is fetched
+        });
+      }
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
 
-    // Optional navigation logic
     switch (index) {
       case 0:
         Navigator.pushNamed(context, '/nutrient_tracking');
-        break;
-      case 1:
         break;
       case 2:
         Navigator.pushNamed(context, '/order_status');
@@ -35,30 +56,40 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.green,
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(
-              'Shops near you!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: ListView(
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                GestureDetector(
-                  child: _ShopCard(),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/menu');
-                  },
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'Shops near you!',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: shopList.length,
+                    itemBuilder: (context, index) {
+                      final shop = shopList[index];
+                      return GestureDetector(
+                        onTap: () {
+                          // Navigate to the menu page for the selected shop
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MenuPage(shopName: shop.name),
+                            ),
+                          );
+                        },
+                        child: _ShopCard(shop: shop), // Pass shop data to _ShopCard
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -83,6 +114,9 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _ShopCard extends StatelessWidget {
+  final Shop shop;
+  const _ShopCard({required this.shop});
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -97,21 +131,44 @@ class _ShopCard extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
             child: Image.asset(
-              'assets/img/healthy_bowl.jpg',
+              shop.image, // Use shop's image asset
               height: 180,
               width: double.infinity,
               fit: BoxFit.cover,
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.all(12),
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Text(
-              'Healthy Bowls',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              shop.name, // Display shop name dynamically
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// Sample Shop class and DataService
+
+class Shop {
+  final String name;
+  final String image;
+
+  Shop({required this.name, required this.image});
+}
+
+class DataService {
+  static Future<List<Shop>> getShops() async {
+    // Here, you can fetch the data from an API or local storage.
+    // For now, let's just return some dummy data.
+    await Future.delayed(Duration(seconds: 2)); // Simulating network delay
+
+    return [
+      Shop(name: 'Healthy Bowls', image: 'assets/img/healthy_bowl.jpg'),
+      Shop(name: 'Fresh Smoothies', image: 'assets/img/smoothie.jpg'),
+      Shop(name: 'Vegan Bites', image: 'assets/img/vegan_bite.jpg'),
+    ];
   }
 }
