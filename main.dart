@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:mad_project/directions.dart';
 import 'firebase_options.dart';
 
 import 'payment.dart';
@@ -32,11 +33,8 @@ class PureBiteApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        // Set initial route to Login Page
-        //'/': (context) => HomePage(),
         '/': (context) => LoginPage(),
         
-        // Define routes for other pages
         '/home': (context) => HomePage(),
         '/menu': (context) => MenuPage(shopName: 'Healthy Bowls'), // Example with a shop name
         '/cart': (context) => CartPage(),
@@ -45,6 +43,7 @@ class PureBiteApp extends StatelessWidget {
         '/order_confirmation': (context) => OrderConfirmationPage(),
         '/signup': (context) => SignUpPage(),
         '/nutrient_tracking': (context) => NutrientTrackingPage(),
+        '/directions': (context) => DirectionsPage(),
       },
     );
   }
