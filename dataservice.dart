@@ -13,7 +13,7 @@ class Items {
   double protein = 0;
   double carbs = 0;
   double fats = 0;
-  String imagename = "";
+  String imageName = "";
 
   Items(
     this.item,
@@ -22,13 +22,22 @@ class Items {
     this.protein,
     this.carbs,
     this.fats,
-    this.imagename,
+    this.imageName,
   );
+}
+
+class Shops {
+  String shopName = "";
+  String shopLocation = "";
+  String imageName = "";
+
+  Shops(this.shopName, this.shopLocation, this.imageName);
 }
 
 List<Logins> localLoginData = [];
 List<Items> localItemData = [];
 List<Items> cartItems = [];
+List<Shops> localShopData = [];
 
 class DataService {
   static final CollectionReference loginData = FirebaseFirestore.instance
@@ -36,6 +45,9 @@ class DataService {
 
   static final CollectionReference itemData = FirebaseFirestore.instance
       .collection('menudata');
+
+  static final CollectionReference shopData = FirebaseFirestore.instance
+      .collection('shopdata');
 
   static Future<void> addLogin({
     required String username,
@@ -63,16 +75,31 @@ class DataService {
     }
   }
 
+  static Future<void> getShops() async {
+    localShopData.clear();
+
+    final qs = await shopData.get();
+
+    for (final doc in qs.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      localShopData.add(
+        Shops(
+          data['shopname'] ?? '',
+          data['shoplocation'] ?? '',
+          data['imagename'] ?? 'logo.png',
+        ),
+      );
+    }
+  }
+
   static Future<void> getItemData() async {
     localItemData.clear();
 
     final qs = await itemData.get();
-    print("Total docs fetched: ${qs.docs.length}");
 
     for (final doc in qs.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      print("Reading docId=${doc.id} data=$data");
-
       localItemData.add(
         Items(
           data['item'] ?? '',
