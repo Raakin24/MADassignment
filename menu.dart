@@ -22,31 +22,37 @@ class _MenuPageState extends State<MenuPage> {
     try {
       await DataService.getItemData();
     } catch (e) {
-      debugPrint("Menu load error: $e");
+      debugPrint("$e");
     } finally {
       if (mounted) {
-        setState(() {
-          loading = false;
-        });
+        setState(() => loading = false);
       }
     }
   }
 
+  int getCartItemCount() {
+    int count = 0;
+    for (final line in cart.values) {
+      count += line.qty;
+    }
+    return count;
+  }
+
   double getCartTotal() {
     double total = 0;
-
-    for (final item in cartItems) {
-      total += item.price;
+    for (final line in cart.values) {
+      total += line.item.price * line.qty;
     }
-
     return total;
   }
 
   @override
   Widget build(BuildContext context) {
+    final cartCount = getCartItemCount();
+    final cartTotal = getCartTotal();
+
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -61,11 +67,10 @@ class _MenuPageState extends State<MenuPage> {
           child: Divider(height: 1),
         ),
       ),
-
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -102,11 +107,9 @@ class _MenuPageState extends State<MenuPage> {
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stack) =>
                                     const SizedBox(
-                                      height: 180,
-                                      child: Center(
-                                        child: Text("Image not found"),
-                                      ),
-                                    ),
+                                  height: 180,
+                                  child: Center(child: Text("Image not found")),
+                                ),
                               ),
                             ),
                             Padding(
@@ -130,7 +133,7 @@ class _MenuPageState extends State<MenuPage> {
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${menuItem.price}',
+                                        '\$${menuItem.price.toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           fontSize: 28,
                                           fontWeight: FontWeight.bold,
@@ -141,8 +144,19 @@ class _MenuPageState extends State<MenuPage> {
                                       ElevatedButton(
                                         onPressed: () {
                                           setState(() {
-                                            cartItems.add(menuItem);
+                                            addToCart(menuItem);
                                           });
+
+                                          // Optional: quick feedback
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  '${menuItem.item} added to cart'),
+                                              duration:
+                                                  const Duration(milliseconds: 500),
+                                            ),
+                                          );
                                         },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
@@ -151,9 +165,8 @@ class _MenuPageState extends State<MenuPage> {
                                             vertical: 10,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                         ),
                                         child: const Text(
@@ -174,7 +187,6 @@ class _MenuPageState extends State<MenuPage> {
                 ),
               ],
             ),
-
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
@@ -188,12 +200,11 @@ class _MenuPageState extends State<MenuPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${cartItems.length} items in cart',
+                 '$cartCount items in cart',
                   style: const TextStyle(color: Colors.grey),
                 ),
-
                 Text(
-                  '\$${getCartTotal().toStringAsFixed(2)}',
+                  '\$${cartTotal.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
