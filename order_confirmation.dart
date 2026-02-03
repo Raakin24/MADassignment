@@ -1,10 +1,29 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'dataservice.dart';
 
-class OrderConfirmationPage extends StatelessWidget {
+class OrderConfirmationPage extends StatefulWidget {
   const OrderConfirmationPage({super.key});
 
   @override
+  State<OrderConfirmationPage> createState() => OrderConfirmationPageState();
+}
+
+class OrderConfirmationPageState extends State<OrderConfirmationPage> {
+  late final int _orderNumber;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderNumber = 1000 + Random().nextInt(9000);
+    currentOrderNumber = _orderNumber;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final shop =
+        selectedShop; // 
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -22,21 +41,14 @@ class OrderConfirmationPage extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.green, width: 4),
                 ),
-                child: const Icon(
-                  Icons.check,
-                  size: 48,
-                  color: Colors.green,
-                ),
+                child: const Icon(Icons.check, size: 48, color: Colors.green),
               ),
 
               const SizedBox(height: 24),
 
               const Text(
                 'Order Confirmed!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 8),
@@ -48,16 +60,13 @@ class OrderConfirmationPage extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              const Text(
-                'Order Number',
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text('Order Number', style: TextStyle(color: Colors.grey)),
 
               const SizedBox(height: 8),
 
-              const Text(
-                '#67',
-                style: TextStyle(
+              Text(
+                '#$_orderNumber',
+                style: const TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
@@ -66,24 +75,26 @@ class OrderConfirmationPage extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // Pickup Location
+              // ✅ Pickup Location from DataService (selectedShop)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Icon(Icons.location_on, color: Colors.green),
-                  SizedBox(width: 8),
+                children: [
+                  const Icon(Icons.location_on, color: Colors.green),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Pickup Location',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Healthy Bowls\n123 Clementi Rd, Singapore',
-                          style: TextStyle(color: Colors.grey),
+                          shop == null
+                              ? 'No pickup location selected'
+                              : '${shop.shopName}\n${shop.shopLocation}',
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),
@@ -107,7 +118,10 @@ class OrderConfirmationPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Track Order', style: TextStyle(color: Colors.white),),
+                  child: const Text(
+                    'Track Order',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
 
@@ -126,7 +140,10 @@ class OrderConfirmationPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Back to Home', style: TextStyle(color: Colors.black),),
+                  child: const Text(
+                    'Back to Home',
+                    style: TextStyle(color: Colors.black),
+                  ),
                 ),
               ),
             ],

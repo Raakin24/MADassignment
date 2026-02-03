@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+int? currentOrderNumber;
+
+Shops? selectedShop;
+
 class Logins {
   String username = "", password = "";
   Logins(this.username, this.password);
