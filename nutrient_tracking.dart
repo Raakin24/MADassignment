@@ -8,7 +8,8 @@ class NutrientTrackingPage extends StatefulWidget {
   State<NutrientTrackingPage> createState() => _NutrientTrackingPageState();
 }
 
-class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
+class _NutrientTrackingPageState extends State<NutrientTrackingPage>
+    with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Controllers
@@ -17,7 +18,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   final TextEditingController carbsController = TextEditingController();
   final TextEditingController fatsController = TextEditingController();
 
-  // Intake values (kept as double internally, displayed as int)
+  // Intake values
   double calories = 0;
   double protein = 0;
   double carbs = 0;
@@ -32,6 +33,9 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   // Goal popup control
   bool _goalPopupShown = false;
 
+  // ✅ Track which day is currently loaded
+  String? _loadedDayId;
+
   // Shop/menu state
   bool loadingShops = false;
   bool loadingMenu = false;
@@ -40,21 +44,21 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   String? selectedShopId; // null => show shops only
   List<Map<String, dynamic>> menuItemsForShop = [];
 
-  // Your mapping: shopdata doc id -> menudata doc id
-  final Map<String, String> shopToMenuDoc = const {
-    'DtGyfeCrNNU67Gsmo7OT': 'lCGdiCnbylWkhjIFUcIk',
-    'rk6sS2ZB1LrVe50hzj3p': 'HeqmRCX15drhtf40wKFR',
-  };
-
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    _loadedDayId = _todayDocId();
     _loadNutrientData(); // loads today's doc
     _loadShops();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+
     caloriesController.dispose();
     proteinController.dispose();
     carbsController.dispose();
@@ -62,14 +66,54 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     super.dispose();
   }
 
+  // ✅ Called when app/tab returns to foreground
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkDayAndResetIfNeeded();
+    }
+  }
+
   // ---------- Date-based doc id ----------
-  // This creates a new document every day in nutrientdata, e.g. "2026-02-02"
   String _todayDocId() {
     final now = DateTime.now();
     final y = now.year.toString().padLeft(4, '0');
     final m = now.month.toString().padLeft(2, '0');
     final d = now.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
+  }
+
+  // ✅ Option A: reset on resume if day changed
+  Future<void> _checkDayAndResetIfNeeded() async {
+    final today = _todayDocId();
+    if (today == _loadedDayId) return;
+
+    _loadedDayId = today;
+
+    // IMPORTANT: immediately reset UI so NOTHING carries over
+    if (mounted) {
+      setState(() {
+        calories = 0;
+        protein = 0;
+        carbs = 0;
+        fats = 0;
+        _goalPopupShown = false;
+
+        // Optional: reset shop selection too
+        selectedShopId = null;
+        menuItemsForShop.clear();
+
+        _syncControllersFromState();
+      });
+    }
+
+    // Then load today's data (if exists) - otherwise stays at 0
+    await _loadNutrientData();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('New day detected ($today) — tracker reset!')),
+    );
   }
 
   // ---------- Helpers ----------
@@ -81,7 +125,6 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   }
 
   void _syncControllersFromState() {
-    // Display integers only
     caloriesController.text = calories.toInt().toString();
     proteinController.text = protein.toInt().toString();
     carbsController.text = carbs.toInt().toString();
@@ -111,7 +154,6 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
       );
     }
 
-    // Allow popup again if values drop below goals later
     if (!goalsMet) _goalPopupShown = false;
   }
 
@@ -119,11 +161,12 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   Future<void> _loadNutrientData() async {
     try {
       final todayId = _todayDocId();
-      final doc =
-          await _firestore.collection('nutrientdata').doc(todayId).get();
+      final doc = await _firestore.collection('nutrientdata').doc(todayId).get();
+
+      _loadedDayId ??= todayId;
 
       if (!doc.exists) {
-        // Create empty state for today
+        if (!mounted) return;
         setState(() {
           calories = 0;
           protein = 0;
@@ -135,9 +178,10 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
       }
 
       final data = doc.data() ?? {};
+      if (!mounted) return;
       setState(() {
         calories = _asDouble(data['calories']);
-        protein = _asDouble(data['proteins']); // stored as "proteins"
+        protein = _asDouble(data['proteins']); // nutrientdata stores "proteins"
         carbs = _asDouble(data['carbs']);
         fats = _asDouble(data['fats']);
         _syncControllersFromState();
@@ -152,7 +196,11 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   // ---------- WRITE nutrientdata (TODAY) ----------
   Future<void> _saveNutrientData() async {
     try {
+      // ✅ NEW: ensures if it’s a new day, values reset BEFORE saving
+      await _checkDayAndResetIfNeeded();
+
       final todayId = _todayDocId();
+      _loadedDayId = todayId; // keep in sync
 
       final intCal = int.tryParse(caloriesController.text) ?? 0;
       final intPro = int.tryParse(proteinController.text) ?? 0;
@@ -160,7 +208,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
       final intFat = int.tryParse(fatsController.text) ?? 0;
 
       final data = {
-        'date': todayId, // handy for filtering/sorting
+        'date': todayId,
         'calories': intCal,
         'proteins': intPro,
         'carbs': intCar,
@@ -173,6 +221,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
           .doc(todayId)
           .set(data, SetOptions(merge: true));
 
+      if (!mounted) return;
       setState(() {
         calories = intCal.toDouble();
         protein = intPro.toDouble();
@@ -196,27 +245,42 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     }
   }
 
-  // ---------- READ shopdata (shops list only) ----------
+  // ---------- READ shopdata ----------
   Future<void> _loadShops() async {
     setState(() => loadingShops = true);
     try {
       final snap = await _firestore.collection('shopdata').get();
       final list = snap.docs.map((d) {
         final data = d.data();
-        return {
-          'id': d.id,
-          ...data,
-        };
+        return {'id': d.id, ...data};
       }).toList();
 
-      setState(() {
-        shops = list;
-      });
+      setState(() => shops = list);
     } catch (e) {
       debugPrint('Failed to load shopdata: $e');
     } finally {
       if (mounted) setState(() => loadingShops = false);
     }
+  }
+
+  // ---------- MENU parsing helpers ----------
+  List<Map<String, dynamic>> _extractMenuItemsFromDoc(
+    String docId,
+    Map<String, dynamic> data,
+  ) {
+    final items = data['items'];
+    if (items is List) {
+      return items.map((raw) {
+        final m = (raw is Map)
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
+        return {'id': '${docId}_${m['item'] ?? m['name'] ?? ''}', ...m};
+      }).toList();
+    }
+
+    return [
+      {'id': docId, ...data}
+    ];
   }
 
   // ---------- READ menudata for a selected shop ----------
@@ -227,27 +291,50 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     });
 
     try {
-      final menuDocId = shopToMenuDoc[shopId];
-      if (menuDocId == null) {
+      final shopDoc = await _firestore.collection('shopdata').doc(shopId).get();
+      final shopData = shopDoc.data() ?? {};
+
+      List<String> menuDocIds = [];
+
+      final dynamic idsList =
+          shopData['menuDocIds'] ?? shopData['menuIds'] ?? shopData['menu_docs'];
+
+      if (idsList is List) {
+        menuDocIds = idsList.map((e) => e.toString()).toList();
+      } else {
+        final single =
+            shopData['menuDocId'] ?? shopData['menuId'] ?? shopData['menu_doc'];
+        if (single != null && single.toString().trim().isNotEmpty) {
+          menuDocIds = [single.toString()];
+        }
+      }
+
+      if (menuDocIds.isEmpty) {
+        final q = await _firestore
+            .collection('menudata')
+            .where('shopId', isEqualTo: shopId)
+            .get();
+        menuDocIds = q.docs.map((d) => d.id).toList();
+      }
+
+      if (menuDocIds.isEmpty) {
         setState(() => menuItemsForShop = []);
         return;
       }
 
-      final doc = await _firestore.collection('menudata').doc(menuDocId).get();
-      if (!doc.exists) {
-        setState(() => menuItemsForShop = []);
-        return;
+      final futures = menuDocIds
+          .map((id) => _firestore.collection('menudata').doc(id).get());
+      final docs = await Future.wait(futures);
+
+      final List<Map<String, dynamic>> allItems = [];
+      for (final d in docs) {
+        if (!d.exists) continue;
+        final data = d.data() ?? {};
+        allItems.addAll(_extractMenuItemsFromDoc(d.id, data));
       }
 
-      final data = doc.data() ?? {};
-      setState(() {
-        menuItemsForShop = [
-          {
-            'id': doc.id,
-            ...data,
-          }
-        ];
-      });
+      if (!mounted) return;
+      setState(() => menuItemsForShop = allItems);
     } catch (e) {
       debugPrint('Failed to load menudata for shop: $e');
     } finally {
@@ -255,16 +342,19 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     }
   }
 
-  // ---------- Add ONE menu item (separately) ----------
+  // ---------- Add ONE menu item ----------
   Future<void> _addSingleMenuItemToIntake(Map<String, dynamic> item) async {
     try {
+      await _checkDayAndResetIfNeeded();
+
       final todayId = _todayDocId();
 
       final addCalories = _asDouble(item['calories']);
-      final addProtein = _asDouble(item['protein']); // menudata uses "protein"
+      final addProtein = _asDouble(item['protein'] ?? item['proteins']);
       final addCarbs = _asDouble(item['carbs']);
       final addFats = _asDouble(item['fats']);
 
+      if (!mounted) return;
       setState(() {
         calories += addCalories;
         protein += addProtein;
@@ -286,7 +376,9 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${(item['item'] ?? 'menu item')}')),
+        SnackBar(
+          content: Text('Added ${(item['item'] ?? item['name'] ?? 'menu item')}'),
+        ),
       );
     } catch (e) {
       debugPrint('Failed to add menu item: $e');
@@ -387,10 +479,8 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 final name = (s['shopname'] ?? 'Unknown').toString();
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                  title: Text(name,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     setState(() => selectedShopId = id);
@@ -426,15 +516,13 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
             label: const Text('Back to shops'),
           ),
           const SizedBox(height: 6),
-          Text(
-            shopName,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          Text(shopName,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          const Text(
-            'Menu items',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          const Text('Menu items',
+              style:
+                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (loadingMenu)
             const Center(child: CircularProgressIndicator())
@@ -443,9 +531,9 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
           else
             Column(
               children: menuItemsForShop.map((m) {
-                final name = (m['item'] ?? 'Unknown').toString();
+                final name = (m['item'] ?? m['name'] ?? 'Unknown').toString();
                 final cals = _asDouble(m['calories']).toInt();
-                final prot = _asDouble(m['protein']).toInt();
+                final prot = _asDouble(m['protein'] ?? m['proteins']).toInt();
                 final carb = _asDouble(m['carbs']).toInt();
                 final fat = _asDouble(m['fats']).toInt();
 
@@ -485,12 +573,8 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     );
   }
 
-  // ---------- Build ----------
   @override
   Widget build(BuildContext context) {
-    // ignore: unused_local_variable
-    final todayId = _todayDocId();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('PureBite - Nutrient Tracking'),
@@ -500,20 +584,6 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            // Optional: show which day you're editing
-            /*
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Today: $todayId',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ),
-            ),
-            */
-            // CALORIES
             _card(
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -535,9 +605,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                       ),
                       onChanged: (val) {
                         final parsed = int.tryParse(val) ?? 0;
-                        setState(() {
-                          calories = parsed.toDouble();
-                        });
+                        setState(() => calories = parsed.toDouble());
                         _checkGoalsAndShowPopup();
                       },
                     ),
@@ -549,18 +617,14 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // MACROS
             _card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Macronutrients',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Macronutrients',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   _macroTile(
                     title: 'Protein',
                     value: protein,
@@ -588,15 +652,9 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // SHOPS FIRST -> THEN MENU
             if (selectedShopId == null) _shopsOnlyCard() else _menuForSelectedShopCard(),
-
             const SizedBox(height: 12),
-
-            // SAVE BUTTON
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
