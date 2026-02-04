@@ -189,7 +189,7 @@ class _MenuPageState extends State<MenuPage> {
             ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(top: BorderSide(color: Colors.grey)),
         ),
