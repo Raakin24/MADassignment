@@ -8,8 +8,7 @@ class NutrientTrackingPage extends StatefulWidget {
   State<NutrientTrackingPage> createState() => _NutrientTrackingPageState();
 }
 
-class _NutrientTrackingPageState extends State<NutrientTrackingPage>
-    with WidgetsBindingObserver {
+class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Controllers
@@ -33,8 +32,8 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
   // Goal popup control
   bool _goalPopupShown = false;
 
-  // ✅ Track which day is currently loaded
-  String? _loadedDayId;
+  // ✅ Session doc id (fresh every app reopen)
+  late final String _sessionDocId;
 
   // Shop/menu state
   bool loadingShops = false;
@@ -47,73 +46,18 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addObserver(this);
-
-    _loadedDayId = _todayDocId();
-    _loadNutrientData(); // loads today's doc
+    _sessionDocId = _firestore.collection('nutrientdata').doc().id;
+    _resetTrackerUI();
     _loadShops();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-
     caloriesController.dispose();
     proteinController.dispose();
     carbsController.dispose();
     fatsController.dispose();
     super.dispose();
-  }
-
-  // ✅ Called when app/tab returns to foreground
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkDayAndResetIfNeeded();
-    }
-  }
-
-  // ---------- Date-based doc id ----------
-  String _todayDocId() {
-    final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
-
-  // ✅ Option A: reset on resume if day changed
-  Future<void> _checkDayAndResetIfNeeded() async {
-    final today = _todayDocId();
-    if (today == _loadedDayId) return;
-
-    _loadedDayId = today;
-
-    // IMPORTANT: immediately reset UI so NOTHING carries over
-    if (mounted) {
-      setState(() {
-        calories = 0;
-        protein = 0;
-        carbs = 0;
-        fats = 0;
-        _goalPopupShown = false;
-
-        // Optional: reset shop selection too
-        selectedShopId = null;
-        menuItemsForShop.clear();
-
-        _syncControllersFromState();
-      });
-    }
-
-    // Then load today's data (if exists) - otherwise stays at 0
-    await _loadNutrientData();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('New day detected ($today) — tracker reset!')),
-    );
   }
 
   // ---------- Helpers ----------
@@ -124,11 +68,47 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
     return double.tryParse(v.toString()) ?? 0;
   }
 
+  int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  String _dateString(DateTime now) {
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  String _timeString(DateTime now) {
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    final ss = now.second.toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
+  }
+
   void _syncControllersFromState() {
     caloriesController.text = calories.toInt().toString();
     proteinController.text = protein.toInt().toString();
     carbsController.text = carbs.toInt().toString();
     fatsController.text = fats.toInt().toString();
+  }
+
+  void _resetTrackerUI() {
+    setState(() {
+      calories = 0;
+      protein = 0;
+      carbs = 0;
+      fats = 0;
+      _goalPopupShown = false;
+
+      selectedShopId = null;
+      menuItemsForShop.clear();
+
+      _syncControllersFromState();
+    });
   }
 
   void _checkGoalsAndShowPopup() {
@@ -157,50 +137,12 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
     if (!goalsMet) _goalPopupShown = false;
   }
 
-  // ---------- READ nutrientdata (TODAY) ----------
-  Future<void> _loadNutrientData() async {
-    try {
-      final todayId = _todayDocId();
-      final doc = await _firestore.collection('nutrientdata').doc(todayId).get();
-
-      _loadedDayId ??= todayId;
-
-      if (!doc.exists) {
-        if (!mounted) return;
-        setState(() {
-          calories = 0;
-          protein = 0;
-          carbs = 0;
-          fats = 0;
-          _syncControllersFromState();
-        });
-        return;
-      }
-
-      final data = doc.data() ?? {};
-      if (!mounted) return;
-      setState(() {
-        calories = _asDouble(data['calories']);
-        protein = _asDouble(data['proteins']); // nutrientdata stores "proteins"
-        carbs = _asDouble(data['carbs']);
-        fats = _asDouble(data['fats']);
-        _syncControllersFromState();
-      });
-
-      _checkGoalsAndShowPopup();
-    } catch (e) {
-      debugPrint('Failed to load nutrientdata: $e');
-    }
-  }
-
-  // ---------- WRITE nutrientdata (TODAY) ----------
+  // ---------- WRITE nutrientdata (SESSION DOC) ----------
   Future<void> _saveNutrientData() async {
     try {
-      // ✅ NEW: ensures if it’s a new day, values reset BEFORE saving
-      await _checkDayAndResetIfNeeded();
-
-      final todayId = _todayDocId();
-      _loadedDayId = todayId; // keep in sync
+      final now = DateTime.now();
+      final date = _dateString(now);
+      final time = _timeString(now);
 
       final intCal = int.tryParse(caloriesController.text) ?? 0;
       final intPro = int.tryParse(proteinController.text) ?? 0;
@@ -208,17 +150,23 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
       final intFat = int.tryParse(fatsController.text) ?? 0;
 
       final data = {
-        'date': todayId,
+        'sessionId': _sessionDocId,
+        'date': date,
+        'time': time,
+
+        // store nutrientdata consistently (plural "proteins")
         'calories': intCal,
         'proteins': intPro,
         'carbs': intCar,
         'fats': intFat,
+
+        'clientTimestamp': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
       await _firestore
           .collection('nutrientdata')
-          .doc(todayId)
+          .doc(_sessionDocId)
           .set(data, SetOptions(merge: true));
 
       if (!mounted) return;
@@ -234,7 +182,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved today ($todayId) to Firebase!')),
+        SnackBar(content: Text('Saved to Firebase ($date $time)')),
       );
     } catch (e) {
       debugPrint('Failed to save nutrientdata: $e');
@@ -263,27 +211,46 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
     }
   }
 
-  // ---------- MENU parsing helpers ----------
-  List<Map<String, dynamic>> _extractMenuItemsFromDoc(
-    String docId,
-    Map<String, dynamic> data,
-  ) {
-    final items = data['items'];
-    if (items is List) {
-      return items.map((raw) {
-        final m = (raw is Map)
-            ? Map<String, dynamic>.from(raw)
-            : <String, dynamic>{};
-        return {'id': '${docId}_${m['item'] ?? m['name'] ?? ''}', ...m};
-      }).toList();
-    }
+  // ---------- Menu parsing ----------
+  // Your menudata/menu2data docs are "one item per doc", like screenshot:
+  // item, imagename, calories, protein, carbs, fats, price
+  Map<String, dynamic> _normalizeMenuItem(String docId, Map<String, dynamic> raw) {
+    final name = (raw['item'] ?? raw['name'] ?? '').toString();
 
-    return [
-      {'id': docId, ...data}
-    ];
+    // ✅ FIX: menu uses "protein", nutrientdata uses "proteins"
+    final proteinVal = raw.containsKey('protein')
+        ? raw['protein']
+        : raw['proteins'];
+
+    return {
+      'id': docId,
+      'item': name,
+      'imagename': raw['imagename'],
+      'price': _asDouble(raw['price']),
+      'calories': _asInt(raw['calories']),
+      'protein': _asInt(proteinVal),
+      'carbs': _asInt(raw['carbs']),
+      'fats': _asInt(raw['fats']),
+    };
   }
 
-  // ---------- READ menudata for a selected shop ----------
+  /// ✅ Choose menu collection for this shop:
+  /// Priority:
+  /// 1) shopdata.menuCollection (recommended long-term)
+  /// 2) fallback: shopdata.path ("/menu2" => menu2data, else menudata)
+  String _resolveMenuCollection(Map<String, dynamic> shopData) {
+    final fromField = (shopData['menuCollection'] ?? shopData['menu_collection'])
+        ?.toString()
+        .trim();
+
+    if (fromField != null && fromField.isNotEmpty) return fromField;
+
+    final path = (shopData['path'] ?? '').toString().toLowerCase();
+    if (path.contains('menu2')) return 'menu2data';
+    return 'menudata';
+  }
+
+  // ---------- READ menu for a selected shop ----------
   Future<void> _loadMenuForShop(String shopId) async {
     setState(() {
       loadingMenu = true;
@@ -294,63 +261,42 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
       final shopDoc = await _firestore.collection('shopdata').doc(shopId).get();
       final shopData = shopDoc.data() ?? {};
 
-      List<String> menuDocIds = [];
+      final collectionName = _resolveMenuCollection(shopData);
 
-      final dynamic idsList =
-          shopData['menuDocIds'] ?? shopData['menuIds'] ?? shopData['menu_docs'];
-
-      if (idsList is List) {
-        menuDocIds = idsList.map((e) => e.toString()).toList();
-      } else {
-        final single =
-            shopData['menuDocId'] ?? shopData['menuId'] ?? shopData['menu_doc'];
-        if (single != null && single.toString().trim().isNotEmpty) {
-          menuDocIds = [single.toString()];
-        }
-      }
+      final List<String> menuDocIds = ((shopData['menuDocIds'] as List?) ?? [])
+          .map((e) => e.toString())
+          .toList();
 
       if (menuDocIds.isEmpty) {
-        final q = await _firestore
-            .collection('menudata')
-            .where('shopId', isEqualTo: shopId)
-            .get();
-        menuDocIds = q.docs.map((d) => d.id).toList();
-      }
-
-      if (menuDocIds.isEmpty) {
+        if (!mounted) return;
         setState(() => menuItemsForShop = []);
         return;
       }
 
-      final futures = menuDocIds
-          .map((id) => _firestore.collection('menudata').doc(id).get());
-      final docs = await Future.wait(futures);
+      final docs = await Future.wait(
+        menuDocIds.map((id) => _firestore.collection(collectionName).doc(id).get()),
+      );
 
       final List<Map<String, dynamic>> allItems = [];
       for (final d in docs) {
         if (!d.exists) continue;
-        final data = d.data() ?? {};
-        allItems.addAll(_extractMenuItemsFromDoc(d.id, data));
+        allItems.add(_normalizeMenuItem(d.id, d.data() ?? {}));
       }
 
       if (!mounted) return;
       setState(() => menuItemsForShop = allItems);
     } catch (e) {
-      debugPrint('Failed to load menudata for shop: $e');
+      debugPrint('Failed to load menu for shop: $e');
     } finally {
       if (mounted) setState(() => loadingMenu = false);
     }
   }
 
-  // ---------- Add ONE menu item ----------
+  // ---------- Add ONE menu item (updates session doc) ----------
   Future<void> _addSingleMenuItemToIntake(Map<String, dynamic> item) async {
     try {
-      await _checkDayAndResetIfNeeded();
-
-      final todayId = _todayDocId();
-
       final addCalories = _asDouble(item['calories']);
-      final addProtein = _asDouble(item['protein'] ?? item['proteins']);
+      final addProtein = _asDouble(item['protein']); // normalized
       final addCarbs = _asDouble(item['carbs']);
       final addFats = _asDouble(item['fats']);
 
@@ -363,12 +309,19 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
         _syncControllersFromState();
       });
 
-      await _firestore.collection('nutrientdata').doc(todayId).set({
-        'date': todayId,
+      final now = DateTime.now();
+      final date = _dateString(now);
+      final time = _timeString(now);
+
+      await _firestore.collection('nutrientdata').doc(_sessionDocId).set({
+        'sessionId': _sessionDocId,
+        'date': date,
+        'time': time,
         'calories': calories.toInt(),
-        'proteins': protein.toInt(),
+        'proteins': protein.toInt(), // nutrientdata uses plural
         'carbs': carbs.toInt(),
         'fats': fats.toInt(),
+        'clientTimestamp': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -376,9 +329,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added ${(item['item'] ?? item['name'] ?? 'menu item')}'),
-        ),
+        SnackBar(content: Text('Added ${(item['item'] ?? 'menu item')}')),
       );
     } catch (e) {
       debugPrint('Failed to add menu item: $e');
@@ -517,12 +468,10 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
           ),
           const SizedBox(height: 6),
           Text(shopName,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           const Text('Menu items',
-              style:
-                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (loadingMenu)
             const Center(child: CircularProgressIndicator())
@@ -531,11 +480,11 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
           else
             Column(
               children: menuItemsForShop.map((m) {
-                final name = (m['item'] ?? m['name'] ?? 'Unknown').toString();
-                final cals = _asDouble(m['calories']).toInt();
-                final prot = _asDouble(m['protein'] ?? m['proteins']).toInt();
-                final carb = _asDouble(m['carbs']).toInt();
-                final fat = _asDouble(m['fats']).toInt();
+                final name = (m['item'] ?? 'Unknown').toString();
+                final cals = _asInt(m['calories']);
+                final prot = _asInt(m['protein']);
+                final carb = _asInt(m['carbs']);
+                final fat = _asInt(m['fats']);
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -547,11 +496,11 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                                style: const TextStyle(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 2),
                             Text(
-                                'Calories: $cals | Protein: $prot | Carbs: $carb | Fats: $fat'),
+                              'Calories: $cals | Protein: $prot | Carbs: $carb | Fats: $fat',
+                            ),
                           ],
                         ),
                       ),
