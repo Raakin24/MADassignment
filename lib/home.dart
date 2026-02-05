@@ -77,11 +77,10 @@ class _HomePageState extends State<HomePage> {
                       final shop = localShopData[index];
                       return GestureDetector(
                         onTap: () {
+                          selectedShop = shop;
                           Navigator.pushNamed(
                             context,
                             shop.pathName,
-                            arguments:
-                                shop, // optional, if you want to pass the shop
                           );
                         },
                         child: Card(
