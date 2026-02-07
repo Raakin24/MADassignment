@@ -49,12 +49,12 @@ class OrderStatusPage extends StatelessWidget {
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: const Text(
                   'Get Directions',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -65,12 +65,12 @@ class OrderStatusPage extends StatelessWidget {
               height: 50,
               child: OutlinedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/menu');
+                  Navigator.pushNamed(context, '/home');
                 },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: const Text(

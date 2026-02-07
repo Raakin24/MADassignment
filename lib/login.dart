@@ -3,11 +3,19 @@ import 'home.dart';
 import 'signup.dart';
 import 'dataservice.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController usernameController = TextEditingController();
+
   final TextEditingController passwordController = TextEditingController();
 
-  LoginPage({super.key});
+  bool obscurePassword = true;
 
   Future<void> login(BuildContext context) async {
     final enteredUsername = usernameController.text.trim();
@@ -15,7 +23,10 @@ class LoginPage extends StatelessWidget {
 
     await DataService.getLoginDataByUsername(enteredUsername);
 
-    if (localLoginData.isNotEmpty && localLoginData[0].password == enteredPassword) {
+    if (localLoginData.isNotEmpty &&
+        localLoginData[0].password == enteredPassword &&
+        enteredPassword != '' &&
+        enteredUsername != '') {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
@@ -25,10 +36,15 @@ class LoginPage extends StatelessWidget {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Login Failed'),
+            title: const Text(
+              'Login Failed',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             content: const Text(
               'Incorrect username or password. Please sign up.',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
+            backgroundColor: Colors.red,
             actions: <Widget>[
               TextButton(
                 onPressed: () {
@@ -37,13 +53,25 @@ class LoginPage extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => SignUpPage()),
                   );
                 },
-                child: const Text('Sign Up'),
+                child: const Text(
+                  'Sign Up',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: const Text('Try Again'),
+                child: const Text(
+                  'Try Again',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
             ],
           );
@@ -59,12 +87,16 @@ class LoginPage extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Image.asset('assets/img/logo.png', height: 250),
+            const Text(
+              'Healthy food, made simple',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             Card(
               color: Colors.white,
-              elevation: 0,
+              elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(color: Colors.grey.shade300),
@@ -85,18 +117,35 @@ class LoginPage extends StatelessWidget {
                       children: [
                         TextField(
                           controller: usernameController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Username',
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 15),
                         TextField(
                           controller: passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
+                          obscureText: obscurePassword,
+                          decoration: InputDecoration(
                             labelText: 'Password',
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  obscurePassword = !obscurePassword;
+                                });
+                              },
+                            ),
                           ),
                         ),
                         const SizedBox(height: 30),
@@ -105,13 +154,13 @@ class LoginPage extends StatelessWidget {
                           height: 50,
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.pushNamed(context, '/home');
+                              login(context);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(30),
                               ),
                             ),
                             child: const Text(
@@ -136,7 +185,10 @@ class LoginPage extends StatelessWidget {
               },
               child: const Text(
                 "Don't have an account? Sign up",
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

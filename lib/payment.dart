@@ -37,7 +37,9 @@ class PaymentPage extends StatelessWidget {
               controller: cardNameController,
               decoration: InputDecoration(
                 labelText: 'Name on card',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -45,7 +47,9 @@ class PaymentPage extends StatelessWidget {
               controller: cardNumberController,
               decoration: InputDecoration(
                 labelText: 'Card number',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -53,7 +57,9 @@ class PaymentPage extends StatelessWidget {
               controller: cardExpiryController,
               decoration: InputDecoration(
                 labelText: 'Expiry date',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -61,7 +67,9 @@ class PaymentPage extends StatelessWidget {
               controller: cardCVVController,
               decoration: InputDecoration(
                 labelText: 'CVV',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
             ),
             SizedBox(height: 30),
@@ -77,12 +85,12 @@ class PaymentPage extends StatelessWidget {
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: const Text(
                   'Save',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
             ),

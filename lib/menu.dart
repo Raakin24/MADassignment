@@ -60,10 +60,6 @@ class _MenuPageState extends State<MenuPage> {
           widget.shopName,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        // bottom: const PreferredSize(
-        //   preferredSize: Size.fromHeight(1),
-        //   child: Divider(height: 1),
-        // ),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -85,7 +81,7 @@ class _MenuPageState extends State<MenuPage> {
                       final menuItem = localItemData[index];
 
                       return Card(
-                        elevation: 4,
+                        elevation: 2,
                         shadowColor: Colors.black,
                         color: Colors.white,
                         margin: const EdgeInsets.only(bottom: 12),
@@ -129,7 +125,7 @@ class _MenuPageState extends State<MenuPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${menuItem.calories}kcal | ${menuItem.protein}g protein | ${menuItem.carbs}g carbs | ${menuItem.fats}g fats',
-                                    style: const TextStyle(color: Colors.grey),
+                                    style: const TextStyle(color: Colors.grey,),
                                   ),
                                   const SizedBox(height: 12),
                                   Row(
@@ -149,12 +145,12 @@ class _MenuPageState extends State<MenuPage> {
                                             addToCart(menuItem);
                                           });
 
-                                          // Optional: quick feedback
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(
+                                              content:
+                                               Text(
                                                 '${menuItem.item} added to cart',
                                               ),
                                               duration: const Duration(
@@ -166,12 +162,12 @@ class _MenuPageState extends State<MenuPage> {
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 18,
-                                            vertical: 10,
+                                            horizontal: 25,
+                                            vertical: 18,
                                           ),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
-                                              8,
+                                              30,
                                             ),
                                           ),
                                         ),
@@ -232,11 +228,11 @@ class _MenuPageState extends State<MenuPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+                  horizontal: 30,
+                  vertical: 20,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),

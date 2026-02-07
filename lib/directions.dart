@@ -82,8 +82,9 @@ class _DirectionsPageState extends State<DirectionsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Directions'),
-        backgroundColor: Colors.green[700],
+        title: const Text('Directions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,)),
+        backgroundColor: Colors.white,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

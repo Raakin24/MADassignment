@@ -36,7 +36,6 @@ class _CartPageState extends State<CartPage> {
         centerTitle: true,
         backgroundColor: Colors.white,
       ),
-
       body: cart.isEmpty
           ? const Center(child: Text('Your cart is empty'))
           : Padding(
@@ -67,38 +66,38 @@ class _CartPageState extends State<CartPage> {
                 },
               ),
             ),
-
-      bottomNavigationBar: SafeArea(
-              child: Container(
-                color: Colors.white,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: GestureDetector(
-                          child: const _PaymentCard(),
-                          onTap: () {
-                            Navigator.pushNamed(context, '/payment');
-                          },
-                        ),
-                      ),
-                    ),
-                    _OrderSummary(
-                      subTotal: subTotal,
-                      gstTotal: gstTotal,
-                      total: total,
-                    ),
-                  ],
+     bottomNavigationBar: cart.isEmpty
+    ? null
+    : SafeArea(
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    child: const _PaymentCard(),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/payment');
+                    },
+                  ),
                 ),
               ),
-            ),
+              _OrderSummary(
+                subTotal: subTotal,
+                gstTotal: gstTotal,
+                total: total,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
-
 
 class _ItemCard extends StatelessWidget {
   final String itemName;
@@ -121,7 +120,7 @@ class _ItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 6,
+      elevation: 4,
       shadowColor: Colors.black,
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -190,7 +189,7 @@ class _PaymentCardState extends State<_PaymentCard> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Card(
-            elevation: 0,
+            elevation: 2,
             color: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -205,7 +204,7 @@ class _PaymentCardState extends State<_PaymentCard> {
 
         if (snapshot.hasError) {
           return Card(
-            elevation: 0,
+            elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(color: Colors.grey.shade300),
@@ -220,7 +219,7 @@ class _PaymentCardState extends State<_PaymentCard> {
         final list = snapshot.data ?? [];
         if (list.isEmpty) {
           return Card(
-            elevation: 0,
+            elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(color: Colors.grey.shade300),
@@ -235,7 +234,7 @@ class _PaymentCardState extends State<_PaymentCard> {
         final paymentInfo = list[0];
 
         return Card(
-          elevation: 0,
+          elevation: 2,
           color: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -300,6 +299,7 @@ class _OrderSummary extends StatelessWidget {
             'Total: \$${total.toStringAsFixed(2)}',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 10,),
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -311,12 +311,12 @@ class _OrderSummary extends StatelessWidget {
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
               child: const Text(
                 'Place Order',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ),

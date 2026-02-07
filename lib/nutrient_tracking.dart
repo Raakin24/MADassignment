@@ -11,26 +11,35 @@ class NutrientTrackingPage extends StatefulWidget {
 class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Controllers
+  // Controllers (intake)
   final TextEditingController caloriesController = TextEditingController();
   final TextEditingController proteinController = TextEditingController();
   final TextEditingController carbsController = TextEditingController();
   final TextEditingController fatsController = TextEditingController();
 
-  // Intake values (kept as double internally, displayed as int)
+  // Controllers (goals - session only)
+  final TextEditingController calorieGoalController = TextEditingController();
+  final TextEditingController proteinGoalController = TextEditingController();
+  final TextEditingController carbsGoalController = TextEditingController();
+  final TextEditingController fatsGoalController = TextEditingController();
+
+  // Intake values
   double calories = 0;
   double protein = 0;
   double carbs = 0;
   double fats = 0;
 
-  // Goals
-  final double calorieGoal = 2000;
-  final double proteinGoal = 100;
-  final double carbsGoal = 200;
-  final double fatsGoal = 65;
+  // Goals (SESSION ONLY, defaults)
+  double calorieGoal = 2000;
+  double proteinGoal = 100;
+  double carbsGoal = 200;
+  double fatsGoal = 65;
 
   // Goal popup control
   bool _goalPopupShown = false;
+
+  // ✅ Session doc id (fresh every app reopen)
+  late final String _sessionDocId;
 
   // Shop/menu state
   bool loadingShops = false;
@@ -43,7 +52,8 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
   @override
   void initState() {
     super.initState();
-    _loadNutrientData(); // loads today's doc
+    _sessionDocId = _firestore.collection('nutrientdata').doc().id;
+    _resetTrackerUI();
     _loadShops();
   }
 
@@ -53,16 +63,13 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     proteinController.dispose();
     carbsController.dispose();
     fatsController.dispose();
-    super.dispose();
-  }
 
-  // ---------- Date-based doc id ----------
-  String _todayDocId() {
-    final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+    calorieGoalController.dispose();
+    proteinGoalController.dispose();
+    carbsGoalController.dispose();
+    fatsGoalController.dispose();
+
+    super.dispose();
   }
 
   // ---------- Helpers ----------
@@ -73,7 +80,26 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     return double.tryParse(v.toString()) ?? 0;
   }
 
-  // menudata might use protein OR proteins
+  int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  String _dateString(DateTime now) {
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  String _timeString(DateTime now) {
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    final ss = now.second.toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
+  }
 
   void _syncControllersFromState() {
     caloriesController.text = calories.toInt().toString();
@@ -82,8 +108,24 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     fatsController.text = fats.toInt().toString();
   }
 
+  void _resetTrackerUI() {
+    setState(() {
+      calories = 0;
+      protein = 0;
+      carbs = 0;
+      fats = 0;
+      _goalPopupShown = false;
+
+      selectedShopId = null;
+      menuItemsForShop.clear();
+
+      _syncControllersFromState();
+    });
+  }
+
   void _checkGoalsAndShowPopup() {
-    final goalsMet = calories >= calorieGoal &&
+    final goalsMet =
+        calories >= calorieGoal &&
         protein >= proteinGoal &&
         carbs >= carbsGoal &&
         fats >= fatsGoal;
@@ -108,42 +150,160 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     if (!goalsMet) _goalPopupShown = false;
   }
 
-  // ---------- READ nutrientdata (TODAY) ----------
-  Future<void> _loadNutrientData() async {
-    try {
-      final todayId = _todayDocId();
-      final doc = await _firestore.collection('nutrientdata').doc(todayId).get();
-
-      if (!doc.exists) {
-        setState(() {
-          calories = 0;
-          protein = 0;
-          carbs = 0;
-          fats = 0;
-          _syncControllersFromState();
-        });
-        return;
-      }
-
-      final data = doc.data() ?? {};
-      setState(() {
-        calories = _asDouble(data['calories']);
-        protein = _asDouble(data['proteins']); // nutrientdata stores as "proteins"
-        carbs = _asDouble(data['carbs']);
-        fats = _asDouble(data['fats']);
-        _syncControllersFromState();
-      });
-
-      _checkGoalsAndShowPopup();
-    } catch (e) {
-      debugPrint('Failed to load nutrientdata: $e');
-    }
+  // ---------- GOALS (SESSION ONLY) ----------
+  Widget _goalInputTile({
+    required String title,
+    required String subtitle,
+    required TextEditingController controller,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(color: Colors.black54, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              isDense: true,
+              hintText: 'Enter goal',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  // ---------- WRITE nutrientdata (TODAY) ----------
+  void _openGoalEditor() {
+    calorieGoalController.text = calorieGoal.toInt().toString();
+    proteinGoalController.text = proteinGoal.toInt().toString();
+    carbsGoalController.text = carbsGoal.toInt().toString();
+    fatsGoalController.text = fatsGoal.toInt().toString();
+
+    double parseGoal(String s, double fallback) {
+      final v = double.tryParse(s);
+      if (v == null || v <= 0) return fallback;
+      return v;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Set Goals',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+
+              // Looks like your tracker section
+              _goalInputTile(
+                title: 'Calories',
+                subtitle: 'Daily calories goal (kcal)',
+                controller: calorieGoalController,
+              ),
+              _goalInputTile(
+                title: 'Protein',
+                subtitle: 'Daily protein goal (g)',
+                controller: proteinGoalController,
+              ),
+              _goalInputTile(
+                title: 'Carbs',
+                subtitle: 'Daily carbs goal (g)',
+                controller: carbsGoalController,
+              ),
+              _goalInputTile(
+                title: 'Fats',
+                subtitle: 'Daily fats goal (g)',
+                controller: fatsGoalController,
+              ),
+
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel', style: TextStyle(color: Colors.black),),
+                    ),
+                  ),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          calorieGoal = parseGoal(
+                            calorieGoalController.text,
+                            calorieGoal,
+                          );
+                          proteinGoal = parseGoal(
+                            proteinGoalController.text,
+                            proteinGoal,
+                          );
+                          carbsGoal = parseGoal(
+                            carbsGoalController.text,
+                            carbsGoal,
+                          );
+                          fatsGoal = parseGoal(
+                            fatsGoalController.text,
+                            fatsGoal,
+                          );
+                          _goalPopupShown = false;
+                        });
+
+                        _checkGoalsAndShowPopup();
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Goals updated')),
+                        );
+                      },
+                      child: const Text(
+                        'Save',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------- WRITE nutrientdata (SESSION DOC) ----------
   Future<void> _saveNutrientData() async {
     try {
-      final todayId = _todayDocId();
+      final now = DateTime.now();
+      final date = _dateString(now);
+      final time = _timeString(now);
 
       final intCal = int.tryParse(caloriesController.text) ?? 0;
       final intPro = int.tryParse(proteinController.text) ?? 0;
@@ -151,19 +311,23 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
       final intFat = int.tryParse(fatsController.text) ?? 0;
 
       final data = {
-        'date': todayId,
+        'sessionId': _sessionDocId,
+        'date': date,
+        'time': time,
         'calories': intCal,
         'proteins': intPro,
         'carbs': intCar,
         'fats': intFat,
+        'clientTimestamp': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
       await _firestore
           .collection('nutrientdata')
-          .doc(todayId)
+          .doc(_sessionDocId)
           .set(data, SetOptions(merge: true));
 
+      if (!mounted) return;
       setState(() {
         calories = intCal.toDouble();
         protein = intPro.toDouble();
@@ -176,30 +340,25 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved today ($todayId) to Firebase!')),
+        SnackBar(content: Text('Saved Successfully')),
       );
     } catch (e) {
       debugPrint('Failed to save nutrientdata: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
   }
 
-  // ---------- READ shopdata (shops list only) ----------
+  // ---------- READ shopdata ----------
   Future<void> _loadShops() async {
     setState(() => loadingShops = true);
     try {
       final snap = await _firestore.collection('shopdata').get();
-      final list = snap.docs.map((d) {
-        final data = d.data();
-        return {'id': d.id, ...data};
-      }).toList();
-
-      setState(() {
-        shops = list;
-      });
+      final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      if (!mounted) return;
+      setState(() => shops = list);
     } catch (e) {
       debugPrint('Failed to load shopdata: $e');
     } finally {
@@ -207,33 +366,40 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     }
   }
 
-  // ---------- MENU parsing helpers ----------
-  List<Map<String, dynamic>> _extractMenuItemsFromDoc(
+  // ---------- Menu parsing ----------
+  Map<String, dynamic> _normalizeMenuItem(
     String docId,
-    Map<String, dynamic> data,
+    Map<String, dynamic> raw,
   ) {
-    // Case 1: doc contains an array "items"
-    final items = data['items'];
-    if (items is List) {
-      return items.map((raw) {
-        final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-        return {
-          'id': '${docId}_${m['item'] ?? m['name'] ?? ''}',
-          ...m,
-        };
-      }).toList();
-    }
+    final name = (raw['item'] ?? raw['name'] ?? '').toString();
+    final proteinVal = raw.containsKey('protein')
+        ? raw['protein']
+        : raw['proteins'];
 
-    // Case 2: doc itself is one menu item
-    return [
-      {
-        'id': docId,
-        ...data,
-      }
-    ];
+    return {
+      'id': docId,
+      'item': name,
+      'imagename': raw['imagename'],
+      'price': _asDouble(raw['price']),
+      'calories': _asInt(raw['calories']),
+      'protein': _asInt(proteinVal),
+      'carbs': _asInt(raw['carbs']),
+      'fats': _asInt(raw['fats']),
+    };
   }
 
-  // ---------- READ menudata for a selected shop (NO HARD CODE) ----------
+  String _resolveMenuCollection(Map<String, dynamic> shopData) {
+    final fromField =
+        (shopData['menuCollection'] ?? shopData['menu_collection'])
+            ?.toString()
+            .trim();
+    if (fromField != null && fromField.isNotEmpty) return fromField;
+
+    final path = (shopData['path'] ?? '').toString().toLowerCase();
+    if (path.contains('menu2')) return 'menu2data';
+    return 'menudata';
+  }
+
   Future<void> _loadMenuForShop(String shopId) async {
     setState(() {
       loadingMenu = true;
@@ -241,75 +407,49 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     });
 
     try {
-      // 1) Try to read menu doc ids from the shop doc (best for "each shop has BOTH menu items")
       final shopDoc = await _firestore.collection('shopdata').doc(shopId).get();
       final shopData = shopDoc.data() ?? {};
+      final collectionName = _resolveMenuCollection(shopData);
 
-      // Accept multiple possible field names:
-      // - menuDocIds: ["id1","id2"]
-      // - menuDocId: "id1"
-      // - menuIds / menuId
-      List<String> menuDocIds = [];
-
-      final dynamic idsList =
-          shopData['menuDocIds'] ?? shopData['menuIds'] ?? shopData['menu_docs'];
-
-      if (idsList is List) {
-        menuDocIds = idsList.map((e) => e.toString()).toList();
-      } else {
-        final single =
-            shopData['menuDocId'] ?? shopData['menuId'] ?? shopData['menu_doc'];
-        if (single != null && single.toString().trim().isNotEmpty) {
-          menuDocIds = [single.toString()];
-        }
-      }
-
-      // 2) If shop doc doesn't contain ids, fallback to querying menudata by shopId (if your menudata has shopId field)
-      if (menuDocIds.isEmpty) {
-        final q = await _firestore
-            .collection('menudata')
-            .where('shopId', isEqualTo: shopId)
-            .get();
-
-        menuDocIds = q.docs.map((d) => d.id).toList();
-      }
+      final List<String> menuDocIds = ((shopData['menuDocIds'] as List?) ?? [])
+          .map((e) => e.toString())
+          .toList();
 
       if (menuDocIds.isEmpty) {
+        if (!mounted) return;
         setState(() => menuItemsForShop = []);
         return;
       }
 
-      // 3) Fetch ALL menu docs (this is the part that makes "BOTH menu items" possible)
-      final futures = menuDocIds.map((id) => _firestore.collection('menudata').doc(id).get());
-      final docs = await Future.wait(futures);
+      final docs = await Future.wait(
+        menuDocIds.map(
+          (id) => _firestore.collection(collectionName).doc(id).get(),
+        ),
+      );
 
-      final List<Map<String, dynamic>> allItems = [];
+      final items = <Map<String, dynamic>>[];
       for (final d in docs) {
         if (!d.exists) continue;
-        final data = d.data() ?? {};
-        allItems.addAll(_extractMenuItemsFromDoc(d.id, data));
+        items.add(_normalizeMenuItem(d.id, d.data() ?? {}));
       }
 
-      setState(() {
-        menuItemsForShop = allItems;
-      });
+      if (!mounted) return;
+      setState(() => menuItemsForShop = items);
     } catch (e) {
-      debugPrint('Failed to load menudata for shop: $e');
+      debugPrint('Failed to load menu for shop: $e');
     } finally {
       if (mounted) setState(() => loadingMenu = false);
     }
   }
 
-  // ---------- Add ONE menu item (separately) ----------
   Future<void> _addSingleMenuItemToIntake(Map<String, dynamic> item) async {
     try {
-      final todayId = _todayDocId();
-
       final addCalories = _asDouble(item['calories']);
-      final addProtein = _asDouble(item['protein'] ?? item['proteins']);
+      final addProtein = _asDouble(item['protein']);
       final addCarbs = _asDouble(item['carbs']);
       final addFats = _asDouble(item['fats']);
 
+      if (!mounted) return;
       setState(() {
         calories += addCalories;
         protein += addProtein;
@@ -318,12 +458,19 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
         _syncControllersFromState();
       });
 
-      await _firestore.collection('nutrientdata').doc(todayId).set({
-        'date': todayId,
+      final now = DateTime.now();
+      final date = _dateString(now);
+      final time = _timeString(now);
+
+      await _firestore.collection('nutrientdata').doc(_sessionDocId).set({
+        'sessionId': _sessionDocId,
+        'date': date,
+        'time': time,
         'calories': calories.toInt(),
         'proteins': protein.toInt(),
         'carbs': carbs.toInt(),
         'fats': fats.toInt(),
+        'clientTimestamp': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -331,14 +478,14 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${(item['item'] ?? item['name'] ?? 'menu item')}')),
+        SnackBar(content: Text('Added ${(item['item'] ?? 'menu item')}')),
       );
     } catch (e) {
       debugPrint('Failed to add menu item: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Add failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Add failed: $e')));
     }
   }
 
@@ -399,14 +546,30 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
 
   Widget _card({required Widget child}) {
     return Card(
-      elevation: 0,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: Colors.grey.shade300),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: child,
+      child: Padding(padding: const EdgeInsets.all(12), child: child),
+    );
+  }
+
+  //Solid white pill in AppBar (clickable)
+  Widget _setGoalsPill() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: TextButton.icon(
+        onPressed: _openGoalEditor,
+        icon: const Icon(Icons.flag),
+        label: const Text('Set Goals'),
+        style: TextButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }
@@ -488,11 +651,11 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
           else
             Column(
               children: menuItemsForShop.map((m) {
-                final name = (m['item'] ?? m['name'] ?? 'Unknown').toString();
-                final cals = _asDouble(m['calories']).toInt();
-                final prot = _asDouble(m['protein'] ?? m['proteins']).toInt();
-                final carb = _asDouble(m['carbs']).toInt();
-                final fat = _asDouble(m['fats']).toInt();
+                final name = (m['item'] ?? 'Unknown').toString();
+                final cals = _asInt(m['calories']);
+                final prot = _asInt(m['protein']);
+                final carb = _asInt(m['carbs']);
+                final fat = _asInt(m['fats']);
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -503,12 +666,16 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             Text(
-                                'Calories: $cals | Protein: $prot | Carbs: $carb | Fats: $fat'),
+                              'Calories: $cals | Protein: $prot | Carbs: $carb | Fats: $fat',
+                            ),
                           ],
                         ),
                       ),
@@ -530,24 +697,29 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
     );
   }
 
-  // ---------- Build ----------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PureBite - Nutrient Tracking'),
-        backgroundColor: Colors.green,
+        title: const Text(
+          'PureBite - Nutrient Tracking',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        centerTitle: true,
+        actions: [_setGoalsPill()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            // CALORIES
             _card(
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Calories',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text(
+                  'Calories',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -564,9 +736,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                       ),
                       onChanged: (val) {
                         final parsed = int.tryParse(val) ?? 0;
-                        setState(() {
-                          calories = parsed.toDouble();
-                        });
+                        setState(() => calories = parsed.toDouble());
                         _checkGoalsAndShowPopup();
                       },
                     ),
@@ -578,10 +748,7 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // MACROS
             _card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,20 +784,15 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // SHOPS FIRST -> THEN MENU
             if (selectedShopId == null)
               _shopsOnlyCard()
             else
               _menuForSelectedShopCard(),
-
             const SizedBox(height: 12),
-
-            // SAVE BUTTON
             SizedBox(
               width: double.infinity,
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -642,7 +804,10 @@ class _NutrientTrackingPageState extends State<NutrientTrackingPage> {
                 onPressed: _saveNutrientData,
                 child: const Text(
                   'Save Daily Intake',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

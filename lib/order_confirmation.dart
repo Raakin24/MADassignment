@@ -29,6 +29,7 @@ class OrderConfirmationPageState extends State<OrderConfirmationPage> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
               Container(
@@ -85,7 +86,7 @@ class OrderConfirmationPageState extends State<OrderConfirmationPage> {
                         children: [
                           const Text(
                             'Pickup Location',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -103,7 +104,6 @@ class OrderConfirmationPageState extends State<OrderConfirmationPage> {
 
               const Spacer(),
 
-              // Track Order Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -115,12 +115,12 @@ class OrderConfirmationPageState extends State<OrderConfirmationPage> {
                     backgroundColor: Colors.green,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                   child: const Text(
                     'Track Order',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -137,7 +137,7 @@ class OrderConfirmationPageState extends State<OrderConfirmationPage> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                   child: const Text(

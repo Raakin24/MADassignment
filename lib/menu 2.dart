@@ -60,10 +60,6 @@ class _MenuPage2State extends State<MenuPage2> {
           widget.shopName,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        // bottom: const PreferredSize(
-        //   preferredSize: Size.fromHeight(1),
-        //   child: Divider(height: 1),
-        // ),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -85,7 +81,7 @@ class _MenuPage2State extends State<MenuPage2> {
                       final menuItem = localItemData2[index];
 
                       return Card(
-                        elevation: 4,
+                        elevation: 2,
                         shadowColor: Colors.black,
                         color: Colors.white,
                         margin: const EdgeInsets.only(bottom: 12),
@@ -166,12 +162,12 @@ class _MenuPage2State extends State<MenuPage2> {
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 18,
-                                            vertical: 10,
+                                            horizontal: 25,
+                                            vertical: 18,
                                           ),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
-                                              8,
+                                              30,
                                             ),
                                           ),
                                         ),
@@ -232,11 +228,11 @@ class _MenuPage2State extends State<MenuPage2> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+                  horizontal: 30,
+                  vertical: 20,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),

@@ -32,20 +32,31 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _onItemTapped(int index) {
+  Future<void> _onItemTapped(int index) async {
+    // If user taps Home while already on Home, do nothing
+    if (index == 1) {
+      setState(() => _selectedIndex = 1);
+      return;
+    }
+
+    // Highlight the tapped tab immediately
     setState(() {
       _selectedIndex = index;
     });
 
-    // Optional navigation logic based on index
+    // Navigate, then when user returns, reset to Home tab
     switch (index) {
       case 0:
-        Navigator.pushNamed(context, '/nutrient_tracking');
+        await Navigator.pushNamed(context, '/nutrient_tracking');
         break;
       case 2:
-        Navigator.pushNamed(context, '/order_status');
+        await Navigator.pushNamed(context, '/order_status');
         break;
     }
+    if (!mounted) return;
+    setState(() {
+      _selectedIndex = 1;
+    });
   }
 
   @override
@@ -64,10 +75,10 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: EdgeInsets.fromLTRB(20, 16, 16, 8),
                   child: Text(
                     "Shops near you!",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 Expanded(
@@ -77,15 +88,14 @@ class _HomePageState extends State<HomePage> {
                       final shop = localShopData[index];
                       return GestureDetector(
                         onTap: () {
+                          selectedShop = shop;
                           Navigator.pushNamed(
                             context,
                             shop.pathName,
-                            arguments:
-                                shop, // optional, if you want to pass the shop
                           );
                         },
                         child: Card(
-                          elevation: 6,
+                          elevation: 2,
                           shadowColor: Colors.black,
                           color: Colors.white,
                           margin: const EdgeInsets.symmetric(
@@ -150,10 +160,11 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
         currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        onTap: (i) => _onItemTapped(i),
+        iconSize: 20,
         selectedItemColor: Colors.green,
         items: const [
           BottomNavigationBarItem(
