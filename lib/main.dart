@@ -27,6 +27,7 @@ class PureBiteApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'PureBite',
       theme: ThemeData(
         primarySwatch: Colors.green,
